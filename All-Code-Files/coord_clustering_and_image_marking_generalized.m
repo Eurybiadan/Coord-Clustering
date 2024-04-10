@@ -22,28 +22,28 @@ for i=1:length(fNames)
     filepath4 = fullfile(pname4,coordName);
         
     im = imread(fullfile(pname1,imName));
-    coords{1} = dlmread(filepath1);
-    coords{1} = coords{1}(round(coords{1}(:,1))>0 & round(coords{1}(:,1))<size(im,2), :);
-    coords{1} = coords{1}(round(coords{1}(:,2))>0 & round(coords{1}(:,2))<size(im,1), :);
+    coord_lists{1} = dlmread(filepath1);
+    coord_lists{1} = coord_lists{1}(round(coord_lists{1}(:,1))>0 & round(coord_lists{1}(:,1))<size(im,2), :);
+    coord_lists{1} = coord_lists{1}(round(coord_lists{1}(:,2))>0 & round(coord_lists{1}(:,2))<size(im,1), :);
     
-    coords{2} = dlmread(filepath2);
-    coords{2} = coords{2}(round(coords{2}(:,1))>0 & round(coords{2}(:,1))<size(im,2), :);
-    coords{2} = coords{2}(round(coords{2}(:,2))>0 & round(coords{2}(:,2))<size(im,1), :);
+    coord_lists{2} = dlmread(filepath2);
+    coord_lists{2} = coord_lists{2}(round(coord_lists{2}(:,1))>0 & round(coord_lists{2}(:,1))<size(im,2), :);
+    coord_lists{2} = coord_lists{2}(round(coord_lists{2}(:,2))>0 & round(coord_lists{2}(:,2))<size(im,1), :);
     
-    coords{3} = dlmread(filepath3);
-    coords{3} = coords{3}(round(coords{3}(:,1))>0 & round(coords{3}(:,1))<size(im,2), :);
-    coords{3} = coords{3}(round(coords{3}(:,2))>0 & round(coords{3}(:,2))<size(im,1), :);
+    coord_lists{3} = dlmread(filepath3);
+    coord_lists{3} = coord_lists{3}(round(coord_lists{3}(:,1))>0 & round(coord_lists{3}(:,1))<size(im,2), :);
+    coord_lists{3} = coord_lists{3}(round(coord_lists{3}(:,2))>0 & round(coord_lists{3}(:,2))<size(im,1), :);
     
-    coords{4} = dlmread(filepath4);
-    coords{4} = coords{4}(round(coords{4}(:,1))>0 & round(coords{4}(:,1))<size(im,2), :);
-    coords{4} = coords{4}(round(coords{4}(:,2))>0 & round(coords{4}(:,2))<size(im,1), :);
+    coord_lists{4} = dlmread(filepath4);
+    coord_lists{4} = coord_lists{4}(round(coord_lists{4}(:,1))>0 & round(coord_lists{4}(:,1))<size(im,2), :);
+    coord_lists{4} = coord_lists{4}(round(coord_lists{4}(:,2))>0 & round(coord_lists{4}(:,2))<size(im,1), :);
     
-    allcoords = [coords{1}; coords{2}; coords{3}; coords{4}];
-    coordlen = [length(coords{1}); length(coords{2}); length(coords{3}); length(coords{4})]';
+    allcoords = [coord_lists{1}; coord_lists{2}; coord_lists{3}; coord_lists{4}];
+    coordlen = [length(coord_lists{1}); length(coord_lists{2}); length(coord_lists{3}); length(coord_lists{4})]';
     coordbounds = cumsum([1 coordlen]);
     samecoord = [];
     
-    [smdists, distind] = pdist2(allcoords, allcoords,'euclidean','Smallest',length(coords));
+    [smdists, distind] = pdist2(allcoords, allcoords,'euclidean','Smallest',length(coord_lists));
     
     threshdist = smdists(2:end,:);
     threshold = mean(threshdist(threshdist~=0))*1; %median(threshdist(:))*1; %+std(threshdist(:));
@@ -51,14 +51,14 @@ for i=1:length(fNames)
     thresholddisk = strel('disk',round(threshold*SCALING_FACTOR)-1,0);
     
     simple_constellation = zeros(size(im)*SCALING_FACTOR,'uint8');
-    simple_constellation = repmat(simple_constellation,[1 1 length(coords)]);
+    simple_constellation = repmat(simple_constellation,[1 1 length(coord_lists)]);
     
     labelled_constellation = zeros(size(im)*SCALING_FACTOR,'double');
-    labelled_constellation = repmat(labelled_constellation,[1 1 length(coords)]); 
+    labelled_constellation = repmat(labelled_constellation,[1 1 length(coord_lists)]); 
     
-    for c=1:length(coords)
+    for c=1:length(coord_lists)
         
-        RnS_coords{c} = round(coords{c}*SCALING_FACTOR);
+        RnS_coords{c} = round(coord_lists{c}*SCALING_FACTOR);
         
         inds = sub2ind(size(im)*SCALING_FACTOR,RnS_coords{c}(:,1),RnS_coords{c}(:,2));
         
@@ -93,7 +93,7 @@ for i=1:length(fNames)
         mask(theconncomps.PixelIdxList{c}) = 1;
         masked_constellation = flattened_constellations.*mask;
         maximus = imregionalmax(masked_constellation);
-        figure(2); clf; imagesc(masked_constellation); axis image;
+        figure(2); clf; imagesc(masked_constellation); axis image; hold on;
         subconncomp = bwconncomp(maximus);
         
         if subconncomp.NumObjects > 1
@@ -103,6 +103,7 @@ for i=1:length(fNames)
             for o=1:subconncomp.NumObjects
                 if subregionstats(o).Area > 5
                     clustercoords = [clustercoords; subregionstats(o).Centroid]; 
+                    plot( subregionstats(o).Centroid(1), subregionstats(o).Centroid(2),'*')
                 end
             end
             
@@ -112,85 +113,202 @@ for i=1:length(fNames)
             subregionstats = regionprops(subconncomp, 'Centroid' );
             
             clustercoords=[clustercoords; subregionstats.Centroid];
-            
+            plot( subregionstats.Centroid(1), subregionstats.Centroid(2),'*')
         end
+        
     end
     
     clustercoords=round(clustercoords);
     
-    clusterlist = nan( size(clustercoords,1), length(coords) );
+    clusterlist = nan( size(clustercoords,1), length(coord_lists) );
     
     for c=1:size(clustercoords,1)
         clusterlist(c,:)= labelled_constellation(clustercoords(c,2), clustercoords(c,1),:);
     end
     %% Reconcile multiple clusters overlapping
-    for m=1:length(coords)
+    reconciled_clusterlist = [];
+
+    for m=1:length(coord_lists)
         for c=1:max(clusterlist(:,m))
             
+            % Find all instances of cluster c in the mth coordinate list-
+            % if it exists more than once, then go in here- otherwise, do
+            % nothing
             if size(clusterlist(clusterlist(:,m)==c,:),1) > 1
 
-                overlapped_inds = find(clusterlist(:,m)==c);
-                overlapped_clusters = clusterlist(overlapped_inds,:);
+                % Get the rows where this cluster appears more than once
+                % and the clusters themselves- if there's a 0, that means
+                % there is no cluster- so we could have clusters with m-1,
+                % m-2, etc. members.
+                overlapped_clusters = clusterlist(clusterlist(:,m)==c,:);
                 overlapped_clusters(overlapped_clusters==0) = NaN;
-                
-                uniqueinds = unique(overlapped_clusters(overlapped_clusters~=0));
-                
-                if length(uniqueinds)>length(coords)
 
-                    allcombos = fliplr(combvec_matrix(1:size(overlapped_clusters,1), length(coords))');
+                % Do a check for columnwise uniqueness.
+                we_are_special_snowflakes = true;
+                for k=1:size(overlapped_clusters,2)
+                    if length(unique(overlapped_clusters(:,k))) == 1
+                        we_are_special_snowflakes=false;
+                    end
+                end
+                                
+                while size(overlapped_clusters,1) > 0
+                                              
+                    % Display of each cluster. Uncomment if curious.
+                    overlapmask = zeros( size(labelled_constellation,1), size(labelled_constellation,2) );  
+                    for k=1:size(overlapped_clusters,1)
+                        for cl=1:length(coord_lists)
+                            what_a_cluster = labelled_constellation(:,:,cl)==overlapped_clusters(k,cl);
+                            overlapmask = overlapmask + what_a_cluster;
+                            
+                            figure(42); clf; hold on;
+                            imagesc(overlapmask); axis image; 
+                            % disp(num2str(overlapped_clusters(k,cl)))
+                        end
+                    end
+
+                    allcombos = fliplr(combvec_matrix(1:size(overlapped_clusters,1), length(coord_lists))');
                     
                     overlapamt = zeros(size(allcombos,1),1);
                     for j=1:size(allcombos,1)
-                        
-                        overlapmask = zeros( size(labelled_constellation) );                        
+                                                
+                        overlapmask = zeros( size(labelled_constellation,1), size(labelled_constellation,2) );  
                         for k=1:size(allcombos,2)
 
-                            overlap_cluster = clusterlist(overlapped_clusters(allcombos(j,k),k), m);
-                            overlapmask = overlapmask | (labelled_constellation(:,:,k)== overlap_cluster );
+                            what_a_cluster = overlapped_clusters(allcombos(j,k), k);                            
+                            overlapmask = overlapmask | (labelled_constellation(:,:,k)== what_a_cluster );
                         end
                         
-                         imagesc(sum(overlapmask,3)); axis image; 
-                         pause(0.1)
+                        % figure(42); hold on;
+                        %  imagesc(sum(overlapmask,3)); axis image; 
+                        %  pause(0.1)
                         overlapamt(j)=sum(overlapmask(:));
                     end
-
+                    
+                    % Find out which has the greatest overlap- take the
+                    % first one that has the greatest overlap.
                     [overlapmax,overlapwinner] = max(overlapamt);
 
-                    winnerinds = sub2ind(size(overlapped_clusters),allcombos(overlapwinner,:), 1:length(coords));
-                    overlapped_clusters( winnerinds );
-                    clusterlist(overlapped_inds(1),:) = overlapped_clusters( winnerinds );
+                    winnerinds = sub2ind(size(overlapped_clusters),allcombos(overlapwinner,:), 1:length(coord_lists));
+                    winning_cluster = overlapped_clusters( winnerinds );
                     
-%                     overlapped_clusters( winnerinds ) = [];
-                    clusterlist(overlapped_inds(2:end),:)=0;                    
-                
-                else
-                    clusterlist(overlapped_inds(1), 1:length(uniqueinds)) = uniqueinds;
+                    disp('Found greatest overlap. Adding best option, cleaning up cluster list...')
+
+                    % Add them to our reconciled clusterlist
+                    reconciled_clusterlist = [reconciled_clusterlist; winning_cluster];       
+
+                    % Remove the winning indexes from the overlapped cluster
+                    for j=1:size(overlapped_clusters,1)
+                        for k=1:size(overlapped_clusters,2)
+                            if overlapped_clusters(j,k) == winning_cluster(k) 
+                                overlapped_clusters(j,k) = NaN;
+                            end
+                        end
+                    end
+
+                    % Remove blank rows.
+                    overlapped_clusters = overlapped_clusters(~all(isnan(overlapped_clusters),2),:);
+
+                    % If there's only one row, then just add it to our
+                    % recoiled list- if there's multiple, but unique rows,
+                    % then do the same.
+                    if size(overlapped_clusters,1) == 1
+                        disp('Adding remaining cluster to list.')
+                        reconciled_clusterlist = [reconciled_clusterlist; overlapped_clusters];
+                        overlapped_clusters = [];
+                    elseif size(overlapped_clusters,1) > 1
+
+                        % Do a check for columnwise uniqueness.
+                        we_are_special_snowflakes = true;
+                        for k=1:size(overlapped_clusters,2)
+                            if length(unique(overlapped_clusters(:,k))) == 1
+                                we_are_special_snowflakes=false;
+                            end
+                        end
+                        % If each column is unique, then each remaining row
+                        % of the cluster is unique. We then need to check
+                        % to see if these remaining clusters are actually
+                        % clusters (e.g. they're actually connected). If
+                        % they aren't, separate them and add them to the
+                        % clusterlist. If they are, just add them.
+                        if we_are_special_snowflakes
+                            disp('Adding remaining clusters to list.')
+
+                            for j=1:size(overlapped_clusters,1)
+                                thiscluster = overlapped_clusters(j,:);
+                                
+                                if sum(~isnan(thiscluster)) == 1
+                                    reconciled_clusterlist = [reconciled_clusterlist; thiscluster];
+                                else
+
+                                    overlapmask = zeros( size(labelled_constellation,1), size(labelled_constellation,2) );  
+                                    for k=1:size(allcombos,2)            
+                                        overlapmask = overlapmask + (labelled_constellation(:,:,k)== thiscluster(k) );
+                                    end
+                                    overlapconcomp = bwconncomp(overlapmask>0);
+                                    overlapprops = regionprops(bwconncomp(overlapmask>0),'Centroid');
+
+                                    if overlapconcomp.NumObjects > 1
+                                        % % If nothing is over 1, then nothing
+                                        % % overlaps and we should take each
+                                        % % non-nan index and add it separately
+                                        % % to the cluster list.
+                                        % if sum(overlapmask > 1) == 0
+                                        %     for k=1:size(allcombos,2)  
+                                        %         toadd = nan(size(thiscluster));
+                                        %         toadd(k) = thiscluster(k);
+                                        %     end
+                                        % 
+                                        %     reconciled_clusterlist = [reconciled_clusterlist; toadd];
+                                        % else 
+                                            %If we have more than one object, then
+                                            %add each new cluster as we did above.                                 
+                                            for o=1:overlapconcomp.NumObjects
+                                                if subregionstats(o).Area > 5
+                                                    subreg_coords = subregionstats(o).Centroid; 
+                                                    
+                                                    thiscluster = labelled_constellation(subreg_coords (c,2), subreg_coords (c,1),:);
+
+                                                    thiscluster(thiscluster==0)=NaN;
+                                                    % reconciled_clusterlist  = [reconciled_clusterlist ; thiscluster];
+                                                end
+                                            end
+                                        % end
+                                    else
+                                        % reconciled_clusterlist = [reconciled_clusterlist; thiscluster];
+                                    end
+                                end
+                            end
+                            
+                            overlapped_clusters = [];
+                        end
+                    end
                     
-                    clusterlist(overlapped_inds(2:end),:)=0;
                 end
-                                                
-%                 pause;
+                disp(['Done reconciling index: ' num2str(c)])
+
+            else
+                thiscluster = clusterlist(clusterlist(:,m)==c,:);
+                thiscluster(thiscluster==0)=NaN;                
+                reconciled_clusterlist = [reconciled_clusterlist; thiscluster];
             end
 
         end
     end
+    
     %% Display clusters
     figure(10); clf; hold on; imagesc( flattened_constellations' ); colormap gray; axis image;
     overallmask = zeros( size(flattened_constellations));
-    for c=1:size(clusterlist,1)
-        if all(clusterlist(c,:)==0)
-            continue;
-        else
-            showableinds = clusterlist(c,:)~=0;
-        end
+
+   
+    for c=1:size(reconciled_clusterlist,1)
         
-        overlapmask = zeros( [size(labelled_constellation,1),size(labelled_constellation,2)] );
+        showableinds = ~isnan(reconciled_clusterlist(c,:));
         
-        for k=1:length(coords)
-            if clusterlist(c,k)~=0
-                overlapmask = overlapmask + (labelled_constellation(:,:,k)==clusterlist(c,k));
-                overallmask = overallmask | (labelled_constellation(:,:,k)==clusterlist(c,k));
-            end
+        overlapmask = zeros( size(labelled_constellation,1), size(labelled_constellation,2) );  
+
+        for k=1:length(coord_lists)          
+                overlapmask = overlapmask + (labelled_constellation(:,:,k)==reconciled_clusterlist(c,k));
+                overallmask = overallmask + (labelled_constellation(:,:,k)==reconciled_clusterlist(c,k));            
         end                
         overlapprops = regionprops(bwconncomp(overlapmask),'Centroid');
         
@@ -232,8 +350,7 @@ for i=1:length(fNames)
             plot(clustercenter(c,1),clustercenter(c,2),'r*');
         elseif sum(showableinds) == 1
             plot(clustercenter(c,1),clustercenter(c,2),'y*');            
-        end
-
+        end        
     end
     %%
     title('Constellation');
