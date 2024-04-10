@@ -128,28 +128,32 @@ for i=1:length(fNames)
     %% Reconcile multiple clusters overlapping
     reconciled_clusterlist = [];
 
-    for m=1:length(coord_lists)
-        for c=1:max(clusterlist(:,m))
+% for m=1:length(coord_lists)
+        for c=1:size(clusterlist,1)
             
-            % Find all instances of cluster c in the mth coordinate list-
+            coi = clusterlist(c,:);
+
+            % Find all rows containing each cluster member.
+            roi = [];
+            for m=1:length(coord_lists)
+                if coi(m) ~= 0
+                    roi = [roi; clusterlist(clusterlist(:,m) == coi(m),:)];
+                end
+            end
+
+            roi = unique(roi, 'rows');
+
+            % Find all instances of the members of cluster c in the coordinate lists-
             % if it exists more than once, then go in here- otherwise, do
             % nothing
-            if size(clusterlist(clusterlist(:,m)==c,:),1) > 1
+            if size(roi,1) > 1
 
                 % Get the rows where this cluster appears more than once
                 % and the clusters themselves- if there's a 0, that means
                 % there is no cluster- so we could have clusters with m-1,
                 % m-2, etc. members.
-                overlapped_clusters = clusterlist(clusterlist(:,m)==c,:);
+                overlapped_clusters = roi;
                 overlapped_clusters(overlapped_clusters==0) = NaN;
-
-                % Do a check for columnwise uniqueness.
-                we_are_special_snowflakes = true;
-                for k=1:size(overlapped_clusters,2)
-                    if length(unique(overlapped_clusters(:,k))) == 1
-                        we_are_special_snowflakes=false;
-                    end
-                end
                                 
                 while size(overlapped_clusters,1) > 0
                                               
@@ -239,47 +243,36 @@ for i=1:length(fNames)
                                 if sum(~isnan(thiscluster)) == 1
                                     reconciled_clusterlist = [reconciled_clusterlist; thiscluster];
                                 else
-
                                     overlapmask = zeros( size(labelled_constellation,1), size(labelled_constellation,2) );  
                                     for k=1:size(allcombos,2)            
                                         overlapmask = overlapmask + (labelled_constellation(:,:,k)== thiscluster(k) );
                                     end
                                     overlapconcomp = bwconncomp(overlapmask>0);
                                     overlapprops = regionprops(bwconncomp(overlapmask>0),'Centroid');
-
+                                    
                                     if overlapconcomp.NumObjects > 1
-                                        % % If nothing is over 1, then nothing
-                                        % % overlaps and we should take each
-                                        % % non-nan index and add it separately
-                                        % % to the cluster list.
-                                        % if sum(overlapmask > 1) == 0
-                                        %     for k=1:size(allcombos,2)  
-                                        %         toadd = nan(size(thiscluster));
-                                        %         toadd(k) = thiscluster(k);
-                                        %     end
-                                        % 
-                                        %     reconciled_clusterlist = [reconciled_clusterlist; toadd];
-                                        % else 
-                                            %If we have more than one object, then
-                                            %add each new cluster as we did above.                                 
-                                            for o=1:overlapconcomp.NumObjects
-                                                if subregionstats(o).Area > 5
-                                                    subreg_coords = subregionstats(o).Centroid; 
-                                                    
-                                                    thiscluster = labelled_constellation(subreg_coords (c,2), subreg_coords (c,1),:);
-
-                                                    thiscluster(thiscluster==0)=NaN;
-                                                    % reconciled_clusterlist  = [reconciled_clusterlist ; thiscluster];
-                                                end
+                                        %If we have more than one object, then
+                                        %add each new cluster as we did above.                                 
+                                        for o=1:overlapconcomp.NumObjects
+                                            if subregionstats(o).Area > 5
+                                                subreg_coords = subregionstats(o).Centroid; 
+                                                
+                                                thiscluster = labelled_constellation(subreg_coords (c,2), subreg_coords (c,1),:);
+                                    
+                                                thiscluster(thiscluster==0)=NaN;
+                                                reconciled_clusterlist  = [reconciled_clusterlist ; thiscluster];
                                             end
-                                        % end
+                                        end
+                                       
                                     else
-                                        % reconciled_clusterlist = [reconciled_clusterlist; thiscluster];
+                                        reconciled_clusterlist = [reconciled_clusterlist; thiscluster];
                                     end
                                 end
                             end
+                            overlapped_clusters = [];                            
                             
-                            overlapped_clusters = [];
+                        else
+                            disp('We are not special snowflakes.')                                
                         end
                     end
                     
@@ -287,13 +280,13 @@ for i=1:length(fNames)
                 disp(['Done reconciling index: ' num2str(c)])
 
             else
-                thiscluster = clusterlist(clusterlist(:,m)==c,:);
+                thiscluster = roi;
                 thiscluster(thiscluster==0)=NaN;                
                 reconciled_clusterlist = [reconciled_clusterlist; thiscluster];
             end
 
         end
-    end
+    % end
     
     %% Display clusters
     figure(10); clf; hold on; imagesc( flattened_constellations' ); colormap gray; axis image;
@@ -347,9 +340,9 @@ for i=1:length(fNames)
         elseif sum(showableinds) == 3
             plot(clustercenter(c,1),clustercenter(c,2),'g*');
         elseif sum(showableinds) == 2            
-            plot(clustercenter(c,1),clustercenter(c,2),'r*');
+            plot(clustercenter(c,1),clustercenter(c,2),'y*');
         elseif sum(showableinds) == 1
-            plot(clustercenter(c,1),clustercenter(c,2),'y*');            
+            plot(clustercenter(c,1),clustercenter(c,2),'r*');            
         end        
     end
     %%
