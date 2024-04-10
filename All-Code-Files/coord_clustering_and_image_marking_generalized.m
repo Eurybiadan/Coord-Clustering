@@ -179,13 +179,19 @@ for i=1:length(fNames)
                         for k=1:size(allcombos,2)
 
                             what_a_cluster = overlapped_clusters(allcombos(j,k), k);                            
-                            overlapmask = overlapmask | (labelled_constellation(:,:,k)== what_a_cluster );
+                            overlapmask = overlapmask + (labelled_constellation(:,:,k) == what_a_cluster);
                         end
                         
                         % figure(42); hold on;
                         %  imagesc(sum(overlapmask,3)); axis image; 
                         %  pause(0.1)
-                        overlapamt(j)=sum(overlapmask(:));
+                        
+                        % Sum up all of the fully overlapping sections for
+                        % each combination- this is using a max to give
+                        % equal weight to combos that only overlap with a
+                        % subset of the max; e.g. 3 fully overlapping has
+                        % higher weight that 4 slightly overlapping.
+                        overlapamt(j)=sum(overlapmask(:)==max(overlapmask(:)));
                     end
                     
                     % Find out which has the greatest overlap- take the
