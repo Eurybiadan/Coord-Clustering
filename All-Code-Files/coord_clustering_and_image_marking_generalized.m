@@ -10,7 +10,12 @@ SCALING_FACTOR = 10;
 [pname4]=uigetdir(pwd, 'Select the fourth coordinate set.');
 
 [fNames] = read_folder_contents(pname1,'tif');
-% delete('Summary.csv');
+
+clusterfract = {};
+allmaxlevel=0;
+respath = fullfile(pname1,'Results');
+mkdir(respath)
+
 %% Load shit
 for i=1:length(fNames)
 
@@ -298,6 +303,7 @@ for i=1:length(fNames)
     figure(10); clf; hold on; imagesc( flattened_constellations' ); colormap gray; axis image;
     overallmask = zeros( size(flattened_constellations));
 
+    reconciled_clusterlist = unique(reconciled_clusterlist,'rows');
    
     for c=1:size(reconciled_clusterlist,1)
         
@@ -313,34 +319,7 @@ for i=1:length(fNames)
         
         clustercenter(c,:) = [overlapprops.Centroid(2) overlapprops.Centroid(1)]; %overlapprops.Centroid;
 
-        % % if max(overlapmask(:)) == 4
-        % %     plot(thiscenter(:,1),thiscenter(:,2),'g*');
-        % if sum(showableinds) >= 3
-        %     plot(clustercenter(c,1),clustercenter(c,2),'g*');
-        % elseif sum(showableinds) == 2
-        % 
-        %     if all(clusterlist(c, 2:3)>0) % If JM and RC marked it but GH didn't, mark a GH colored X, and so on.
-        %         plot(clustercenter(c,1),clustercenter(c,2),'mx');
-        %     elseif all(clusterlist(c, [1 3])>0)  % GH and RC did, JM didn't
-        %         plot(clustercenter(c,1),clustercenter(c,2),'yx');
-        %     elseif all(clusterlist(c, 1:2)>0)
-        %         plot(clustercenter(c,1),clustercenter(c,2),'bx'); % GH and JM did, RC didn't
-        %     else                
-        %         disp('You should not see this!')
-        %     end
-        % elseif sum(showableinds) == 1
-        %     [~, whichobs]=max(clusterlist(c,:));
-        %     switch(whichobs)
-        %         case 1
-        %             color='m.';
-        %         case 2
-        %             color='y.';
-        %         case 3
-        %             color='b.';
-        %     end
-        %     plot(clustercenter(c,1),clustercenter(c,2),color,'MarkerSize',12)
-        % 
-        % end
+
         if sum(showableinds) == 4
              plot(clustercenter(c,1),clustercenter(c,2),'b*');
         elseif sum(showableinds) == 3
@@ -354,9 +333,19 @@ for i=1:length(fNames)
     %%
     title('Constellation');
 
+    clustertotals = sum(~isnan(reconciled_clusterlist), 2);
+    levels = unique(clustertotals);
+    maxlevels = max(clustertotals);
 
-    saveas(gcf, fullfile(pname1, [fNames{i}(1:end-4) '_overlap.png']));
-%     saveas(gcf, fullfile(pname, [fNames{i}(1:end-4) '_agreement.svg']))
+    allmaxlevel = max(maxlevels, allmaxlevel);
+    clusterfract{i} = [];
+    for l=1:maxlevels
+        clusterfract{i} = [clusterfract{i} sum(clustertotals==levels(l))/length(clustertotals)];
+    end
+    
+    
+    saveas(gcf, fullfile(respath, [fNames{i}(1:end-4) '_' date '_overlap.png']));
+    saveas(gcf, fullfile(respath, [fNames{i}(1:end-4) '_' date '_agreement.svg']))
     
     % Make our grid of true/false positive and dice coefficient
            
@@ -387,3 +376,12 @@ for i=1:length(fNames)
     % fclose(fid);
     
 end
+%%
+
+
+clustertable = cell2table(clusterfract, 'RowNames', fNames);
+clustertable=splitvars(clustertable);
+clustertable.Properties.VariableNames= string(1:maxlevels);
+clustertable.Properties.DimensionNames{1} = 'Image Name:';
+writetable(clustertable, fullfile(respath, [date '_Summary.csv']),'Delimiter',',','WriteRowNames',true)
+
