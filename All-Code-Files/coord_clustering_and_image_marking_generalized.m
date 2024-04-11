@@ -360,22 +360,27 @@ for i=1:length(fNames)
             for k=1:length(coord_lists)          
                     overlapmask = overlapmask + (labelled_constellation(:,:,k)==reconciled_clusterlist(c,k));
                     overallmask = overallmask + (labelled_constellation(:,:,k)==reconciled_clusterlist(c,k));            
-            end                
-            overlapprops = regionprops(bwconncomp(overlapmask),'Centroid');
+            end
+            overlapconcomp =bwconncomp(overlapmask);
+            overlapprops = regionprops(overlapconcomp,'Centroid');
             
-            clustercenter(c,:) = [overlapprops.Centroid(2) overlapprops.Centroid(1)]; %overlapprops.Centroid;
-    
-    
-            if sum(showableinds) == 4
-                 plot(clustercenter(c,1),clustercenter(c,2),'b*');
-                 drawnow;
-            elseif sum(showableinds) == 3
-                plot(clustercenter(c,1),clustercenter(c,2),'g*');
-            elseif sum(showableinds) == 2            
-                plot(clustercenter(c,1),clustercenter(c,2),'y*');
-            elseif sum(showableinds) == 1
-                plot(clustercenter(c,1),clustercenter(c,2),'r*');            
-            end        
+            if overlapconcomp.NumObjects == 1
+                clustercenter(c,:) = [overlapprops.Centroid(2) overlapprops.Centroid(1)]; %overlapprops.Centroid;
+        
+        
+                if sum(showableinds) == 4
+                     plot(clustercenter(c,1),clustercenter(c,2),'b*');
+                     drawnow;
+                elseif sum(showableinds) == 3
+                    plot(clustercenter(c,1),clustercenter(c,2),'g*');
+                elseif sum(showableinds) == 2            
+                    plot(clustercenter(c,1),clustercenter(c,2),'y*');
+                elseif sum(showableinds) == 1
+                    plot(clustercenter(c,1),clustercenter(c,2),'r*');            
+                end
+            else
+                warning(['Cluster ' numstr(c) ' failed to be clustered.']);
+            end
         end
     end
     %%
