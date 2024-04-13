@@ -51,9 +51,10 @@ for i=1:length(fNames)
     [smdists, distind] = pdist2(allcoords, allcoords,'euclidean','Smallest',length(coord_lists));
     
     threshdist = smdists(2:end,:);
-    threshold = mean(threshdist(threshdist~=0))*0.75; %median(threshdist(:))*1; %+std(threshdist(:));
-
-    thresholddisk = strel('disk',round(threshold*SCALING_FACTOR)-1,0);
+    meannnd = mean(threshdist(threshdist~=0));
+    nndfract = 2;
+    threshold = meannnd*nndfract; %median(threshdist(:))*1; %+std(threshdist(:));
+   
     
     simple_constellation = zeros(size(im)*SCALING_FACTOR,'uint8');
     simple_constellation = repmat(simple_constellation,[1 1 length(coord_lists)]);
@@ -61,24 +62,51 @@ for i=1:length(fNames)
     labelled_constellation = zeros(size(im)*SCALING_FACTOR,'double');
     labelled_constellation = repmat(labelled_constellation,[1 1 length(coord_lists)]); 
     
+    % Find our ideal threshold disk size;
+    % Idea is, our clustering radius would not (if the algorithm allowed it)
+    % cluster neighboring cells within the same coordinate set.
     for c=1:length(coord_lists)
-        
+                        
         RnS_coords{c} = round(coord_lists{c}*SCALING_FACTOR);
         
         inds = sub2ind(size(im)*SCALING_FACTOR,RnS_coords{c}(:,1),RnS_coords{c}(:,2));
         
-        this_constellation = false(size(im)*10);
-        this_constellation( inds ) = true;
-        this_constellation = imdilate(this_constellation, thresholddisk);
+        this_constellation = 2;
+        while max(this_constellation(:)) >1            
+            threshold = meannnd*nndfract;
+            thresholddisk = strel('disk',round(threshold*SCALING_FACTOR)-1,0);
+                           
+            this_constellation = zeros(size(im)*10);
+            this_constellation( inds ) = 1;
+            this_constellation = conv2(this_constellation, thresholddisk.Neighborhood,'same');
+%             imagesc(this_constellation);
+%             drawnow;
+            nndfract = nndfract-0.05;
+        end
+    end
+
+    for c=1:length(coord_lists)
+                
+        RnS_coords{c} = round(coord_lists{c}*SCALING_FACTOR);
         
-        simple_constellation(:,:,c) = uint8(this_constellation);
-        
+        inds = sub2ind(size(im)*SCALING_FACTOR,RnS_coords{c}(:,1),RnS_coords{c}(:,2));
+                       
+        thresholddisk = strel('disk',round(threshold*SCALING_FACTOR)-1,0);
+                       
         this_constellation = zeros(size(im)*10);
         for j=1:size(RnS_coords{c},1)
             this_constellation( RnS_coords{c}(j,2), RnS_coords{c}(j,1) ) = j;
         end
         this_constellation = conv2(this_constellation, thresholddisk.Neighborhood,'same');
+        
         labelled_constellation(:,:,c) = double(this_constellation');
+
+        this_constellation = false(size(im)*10);
+        this_constellation( inds ) = true;
+        this_constellation = imdilate(this_constellation, thresholddisk);
+            
+        simple_constellation(:,:,c) = uint8(this_constellation);
+        
     end
     
     flattened_constellations = uint8(sum(simple_constellation,3));
@@ -306,11 +334,12 @@ for i=1:length(fNames)
                                         %add each new cluster as we did above.                                 
                                         for o=1:overlapconcomp.NumObjects
                                             if overlapprops(o).Area > 5
-                                                subreg_coords = overlapprops(o).Centroid; 
+                                                subreg_coords = round(overlapprops(o).Centroid); 
                                                 
-                                                thiscluster = labelled_constellation(subreg_coords(o,2), subreg_coords(o,1),:);
+                                                thiscluster = labelled_constellation(subreg_coords(2), subreg_coords(1),:);
                                     
                                                 thiscluster(thiscluster==0)=NaN;
+                                                thiscluster = squeeze(thiscluster)';
                                                 reconciled_clusterlist  = [reconciled_clusterlist ; thiscluster];
                                             end
                                         end
@@ -387,15 +416,16 @@ for i=1:length(fNames)
     title('Constellation');
 
     clustertotals = sum(~isnan(reconciled_clusterlist), 2);
+    clustertotals(clustertotals==0)=[];
     levels = unique(clustertotals);
     maxlevels = max(clustertotals);
 
     allmaxlevel = max(maxlevels, allmaxlevel);
     clusterfract{i} = [];
     for l=1:maxlevels
-        clusterfract{i} = [clusterfract{i} sum(clustertotals==levels(l))/length(clustertotals)];
+        clusterfract{i} = [clusterfract{i}; sum(clustertotals==levels(l))/length(clustertotals)];
     end
-    
+    clusterfract{i}
     
     saveas(gcf, fullfile(respath, [fNames{i}(1:end-4) '_' date '_overlap.png']));
     saveas(gcf, fullfile(respath, [fNames{i}(1:end-4) '_' date '_agreement.svg']))
@@ -432,9 +462,11 @@ end
 %%
 
 
-clustertable = cell2table(clusterfract, 'RowNames', fNames);
+clustertable = cell2table(clusterfract);
 clustertable=splitvars(clustertable);
 clustertable.Properties.VariableNames= string(1:maxlevels);
+clustertable.Properties.RowNames = fNames(1:size(clustertable,1));
 clustertable.Properties.DimensionNames{1} = 'Image Name:';
 writetable(clustertable, fullfile(respath, [date '_Summary.csv']),'Delimiter',',','WriteRowNames',true)
 
+disp("We done here.");
