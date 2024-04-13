@@ -423,7 +423,7 @@ for i=1:length(fNames)
     allmaxlevel = max(maxlevels, allmaxlevel);
     clusterfract{i} = [];
     for l=1:maxlevels
-        clusterfract{i} = [clusterfract{i}; sum(clustertotals==levels(l))/length(clustertotals)];
+        clusterfract{i} = [clusterfract{i} sum(clustertotals==levels(l))/length(clustertotals)];
     end
     clusterfract{i}
     
@@ -462,7 +462,7 @@ end
 %%
 
 
-clustertable = cell2table(clusterfract);
+clustertable = cell2table(clusterfract');
 clustertable=splitvars(clustertable);
 clustertable.Properties.VariableNames= string(1:maxlevels);
 clustertable.Properties.RowNames = fNames(1:size(clustertable,1));
