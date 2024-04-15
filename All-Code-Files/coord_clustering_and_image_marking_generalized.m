@@ -423,7 +423,7 @@ for i=1:length(fNames)
     allmaxlevel = max(maxlevels, allmaxlevel);
     clusterfract{i} = [];
     for l=1:maxlevels
-        clusterfract{i} = [clusterfract{i} sum(clustertotals==levels(l))/length(clustertotals)];
+        clusterfract{i} = [clusterfract{i} sum(clustertotals==l)/length(clustertotals)];
     end
     clusterfract{i}
     
@@ -431,7 +431,6 @@ for i=1:length(fNames)
     saveas(gcf, fullfile(respath, [fNames{i}(1:end-4) '_' date '_agreement.svg']))
     
     % Make our grid of true/false positive and dice coefficient
-           
     % theperms = perms(1:3);
     % theperms = theperms(:,1:2);
     % fid=fopen(fullfile(pname1,'Summary.csv'),'a');
